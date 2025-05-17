@@ -1,0 +1,45 @@
+Para compilar: 
+
+stack build
+
+1) Registrar una nueva cuenta:
+
+stack exec password-manager -- register --account Sebas
+
+2) Enumere las credenciales de una cuenta:
+
+stack exec password-manager -- list --account Sebas
+
+3) Agregar una credencial:
+
+stack exec password-manager -- add \
+  --account Sebas \
+  --title GitHub \
+  --user SebasCH04 \
+  --pass 123123123
+
+4) Eliminar una credencial:
+
+stack exec password-manager -- remove \
+  --account Sebas \
+  --title GitHub
+
+5) Editar una credencial existente (cambiar usuario y/o contraseña):
+
+stack exec password-manager -- edit \
+  --account Sebas \
+  --title GitHub \
+  --user NuevoUsuario \
+  --pass NuevaContrasena
+
+6) Copiar nombre de usuario al portapapeles:
+
+stack exec password-manager -- copy-user \
+  --account Sebas \
+  --title GitHub
+
+7) Copiar la contraseña al portapapeles:
+
+stack exec password-manager -- copy-pass \
+  --account Sebas \
+  --title GitHub

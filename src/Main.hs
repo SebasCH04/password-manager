@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Main where
 
@@ -16,160 +17,170 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BC
 import Data.List       (find, transpose)
 import Data.Maybe      (fromMaybe)
-import System.Directory (doesFileExist)
 import Options.Applicative
+import System.Directory (doesFileExist)
 
--- | Paths
-configPath, vaultPath :: FilePath
-configPath = "config.dat"
-vaultPath  = "vault.dat"
-
--- | Master configuration: salt and PIN hash
-data Config = Config
-  { cfgSalt :: ByteString
-  , cfgHash :: ByteString
+--registro de usuario: nombre de la cuenta, salt y hash del PIN
+data UserRecord = UserRecord
+  { urName :: String
+  , urSalt :: ByteString
+  , urHash :: ByteString
   } deriving (Show, Generic)
-instance Serialize Config
+instance Serialize UserRecord
 
--- | CLI commands
+type Config = [UserRecord]
+
+configPath :: FilePath
+configPath = "config.dat"
+
+toVaultFile :: String -> FilePath
+toVaultFile acct = "vault_" ++ acct ++ ".dat"
+
+--comandos para CLI
 data Command
-  = List
-  | Add { title  :: String, username :: String, password :: String }
-  | Remove { titleR :: String }
-  | CopyUser { titleC :: String }
-  | CopyPass { titleC :: String }
-  | Edit { titleE  :: String, newUser :: Maybe String, newPass :: Maybe String }
+  = Register { account :: String }
+  | List { account :: String }
+  | Add { account :: String, title :: String, username :: String, password :: String }
+  | Remove { account :: String, titleR :: String }
+  | CopyUser { account :: String, titleC :: String }
+  | CopyPass { account :: String, titleC :: String }
+  | Edit { account :: String, titleE :: String, newUser :: Maybe String, newPass :: Maybe String }
 
--- | CLI parser
-downloadParser :: Parser Command
-downloadParser = hsubparser
-  ( command "list" (info (pure List)
-      (progDesc "List credentials in the vault"))
- <> command "add" (info addParser
-      (progDesc "Add a new credential"))
- <> command "remove" (info removeParser
-      (progDesc "Remove a credential by title"))
- <> command "copy-user" (info copyUserParser
-      (progDesc "Copy username of a credential to clipboard"))
- <> command "copy-pass" (info copyPassParser
-      (progDesc "Copy password of a credential to clipboard"))
- <> command "edit" (info editParser
-      (progDesc "Edit an existing credential"))
+commandParser :: Parser Command
+commandParser = hsubparser
+  ( command "register" (info registerParser (progDesc "Registrar una nueva cuenta"))
+ <> command "list" (info listParser (progDesc "Listar las credenciales de una cuenta"))
+ <> command "add" (info addParser (progDesc "Agregar una nueva credencial"))
+ <> command "remove" (info removeParser (progDesc "Eliminar una credencial por titulo"))
+ <> command "copy-user" (info copyUserParser (progDesc "Copiar nombre de usuario al portapapeles"))
+ <> command "copy-pass" (info copyPassParser (progDesc "Copiar la contraseña al portapapeles"))
+ <> command "edit" (info editParser (progDesc "Editar una credencial existente"))
   )
   where
+    registerParser = Register
+      <$> strOption (long "account" <> metavar "ACCOUNT" <> help "Nombre de la cuenta para registrar")
+    listParser = List
+      <$> strOption (long "account" <> metavar "ACCOUNT" <> help "Cuenta a utilizar")
     addParser = Add
-      <$> strOption (long "title" <> metavar "TITLE" <> help "Credential title")
-      <*> strOption (long "user"  <> metavar "USER"  <> help "Username")
-      <*> strOption (long "pass"  <> metavar "PASSWORD" <> help "Password")
+      <$> strOption (long "account" <> metavar "ACCOUNT" <> help "Cuenta a utilizar")
+      <*> strOption (long "title" <> metavar "TITLE" <> help "Titulo de credential")
+      <*> strOption (long "user" <> metavar "USER" <> help "Usuario de credencial")
+      <*> strOption (long "pass" <> metavar "PASSWORD" <> help "Contraseña de credencial")
     removeParser = Remove
-      <$> strOption (long "title" <> metavar "TITLE" <> help "Title to remove")
+      <$> strOption (long "account" <> metavar "ACCOUNT" <> help "Cuenta a utilizar")
+      <*> strOption (long "title" <> metavar "TITLE" <> help "Titulo a eliminar")
     copyUserParser = CopyUser
-      <$> strOption (long "title" <> metavar "TITLE" <> help "Title to copy user from")
+      <$> strOption (long "account" <> metavar "ACCOUNT" <> help "Cuenta a utilizar")
+      <*> strOption (long "title" <> metavar "TITLE" <> help "Titulo a copiar usuario")
     copyPassParser = CopyPass
-      <$> strOption (long "title" <> metavar "TITLE" <> help "Title to copy password from")
+      <$> strOption (long "account" <> metavar "ACCOUNT" <> help "Cuenta a utilizar")
+      <*> strOption (long "title" <> metavar "TITLE" <> help "Title a copiar contraseña")
     editParser = Edit
-      <$> strOption  (long "title" <> metavar "TITLE" <> help "Title of credential to edit")
-      <*> optional    (strOption  (long "user"  <> metavar "USER"  <> help "New username"))
-      <*> optional    (strOption  (long "pass"  <> metavar "PASSWORD" <> help "New password"))
+      <$> strOption (long "account" <> metavar "ACCOUNT" <> help "Cuenta a utilizar")
+      <*> strOption (long "title" <> metavar "TITLE" <> help "Titulo de credencial a utilizar")
+      <*> optional (strOption (long "user" <> metavar "USER" <> help "Nuevo nombre de usuario"))
+      <*> optional (strOption (long "pass" <> metavar "PASSWORD" <> help "Nueva contraseña"))
 
 opts :: ParserInfo Command
-opts = info (downloadParser <**> helper)
-  ( fullDesc
- <> header "password-manager - simple encrypted vault CLI" )
+opts = info (commandParser <**> helper)
+  ( fullDesc <> header "password-manager: multi-user encrypted vault CLI" )
 
--- | Initialize or validate config, returning encryption key
-ensureConfig :: IO ByteString
-ensureConfig = do
+loadConfig :: IO Config
+loadConfig = do
   exists <- doesFileExist configPath
-  if not exists
-    then setupNew
-    else loadExisting
-  where
-    setupNew = do
-      putStrLn "No config found. Setting up a new PIN..."
-      pin   <- promptPIN "New PIN: "
-      salt  <- generateSalt
-      let h   = hashPIN salt pin
-      BS.writeFile configPath (S.encode (Config salt h))
+  if not exists then return [] else do
+    bs <- BS.readFile configPath
+    case S.decode bs of
+      Left _   -> return []
+      Right cs -> return cs
+
+saveConfig :: Config -> IO ()
+saveConfig cs = BS.writeFile configPath (S.encode cs)
+
+doRegister :: String -> IO ()
+doRegister acct = do
+  cfg <- loadConfig
+  if any ((==acct) . urName) cfg
+    then putStrLn $ "La cuenta '" ++ acct ++ "' ya existe."
+    else do
+      pin  <- promptPIN "Crear PIN: "
+      salt <- generateSalt
+      let h = hashPIN salt pin
+      saveConfig (UserRecord acct salt h : cfg)
       let key = deriveKey salt pin
-      saveVault vaultPath key []
-      putStrLn "Vault initialized empty."
-      return key
-    loadExisting = do
-      bs <- BS.readFile configPath
-      case S.decode bs of
-        Left _ -> setupNew
-        Right (Config salt h) -> do
-          eKey <- verifyPIN salt h
-          case eKey of
-            Left err -> error err
-            Right key -> return key
+      saveVault (toVaultFile acct) key []
+      putStrLn $ "Cuenta registrada '" ++ acct ++ "'."
 
--- | Mask username: show first 2 and last 2 chars (or last char if short)
+ensureAuth :: String -> IO ByteString
+ensureAuth acct = do
+  cfg <- loadConfig
+  case find ((==acct) . urName) cfg of
+    Nothing -> error $ "La cuenta '" ++ acct ++ "' no fue encontrada."
+    Just (UserRecord _ salt h) -> do
+      eKey <- verifyPIN salt h
+      case eKey of
+        Left err  -> error err
+        Right key -> return key
+
 maskUser :: String -> String
-maskUser s = let n = length s in
-  if n <= 4 then replicate (n-1) '*' ++ [last s]
-  else take 2 s ++ replicate (n-4) '*' ++ drop (n-2) s
-
--- | Fully hide password
+maskUser s = let n = length s in if n <= 4 then replicate (n-1) '*' ++ [last s]
+                                else take 2 s ++ replicate (n-4) '*' ++ drop (n-2) s
 encryptedPass :: String
 encryptedPass = replicate 8 '*'
 
--- | Format table rows
-formatRow :: [Int] -> [String] -> String
-formatRow ws cs =
-  let cells = zipWith (\w c -> c ++ replicate (w - length c) ' ') ws cs
-  in "| " ++ unwords [cell ++ " |" | cell <- cells]
-
--- | Compute column widths from rows
-computeWidths :: [[String]] -> [Int]
-computeWidths rows = map (maximum . map length) (transpose rows)
+enformatRow :: [Int] -> [String] -> String
+enformatRow ws cs = let cells = zipWith (\w c -> c ++ replicate (w-length c) ' ') ws cs
+                      in "| " ++ unwords [cell ++ " |" | cell <- cells]
+encomputeWidths :: [[String]] -> [Int]
+encomputeWidths rows = map (maximum . map length) (transpose rows)
 
 main :: IO ()
 main = do
   cmd <- execParser opts
-  key <- ensureConfig
-  eVault <- loadVault vaultPath key
-  vault  <- case eVault of
-    Left err -> error $ "Failed loading vault: " ++ err
-    Right v  -> return v
   case cmd of
-    List -> do
-      let header = ["Título", "Usuario", "Contraseña"]
-          rows = [ [cTitle c, maskUser (cUser c), encryptedPass] | c <- vault ]
-          widths = computeWidths (header:rows)
-      putStrLn $ formatRow widths header
-      putStrLn $ formatRow widths (map (map (const '-')) header)
-      mapM_ (putStrLn . formatRow widths) rows
-    Add t u p -> do
-      let cred = Credential t u (BC.pack p)
-      saveVault vaultPath key (vault ++ [cred])
-      putStrLn $ "Added: " ++ t
-    Remove tR -> do
-      let vault' = filter ((/= tR) . cTitle) vault
-      saveVault vaultPath key vault'
-      putStrLn $ "Removed: " ++ tR
-    CopyUser tC ->
-      case find ((== tC) . cTitle) vault of
-        Just cred -> doCopyUser cred
-        Nothing   -> putStrLn $ "Credential '" ++ tC ++ "' not found."
-    CopyPass tC ->
-      case find ((== tC) . cTitle) vault of
-        Just cred -> doCopyPass cred
-        Nothing   -> putStrLn $ "Credential '" ++ tC ++ "' not found."
-    Edit tE mU mP ->
-      case find ((== tE) . cTitle) vault of
-        Just cred -> do
-          let updated = cred { cUser = fromMaybe (cUser cred) mU
-                             , cPass = maybe (cPass cred) BC.pack mP }
-              vault'  = map (\c -> if cTitle c == tE then updated else c) vault
-          saveVault vaultPath key vault'
-          putStrLn $ "Edited: " ++ tE
-        Nothing -> putStrLn $ "Credential '" ++ tE ++ "' not found."  
-  where
-    doCopyUser cred = do
-      copyToClipboard (BC.pack $ cUser cred)
-      putStrLn $ "Username for '" ++ cTitle cred ++ "' copied to clipboard."
-    doCopyPass cred = do
-      copyToClipboard (cPass cred)
-      putStrLn $ "Password for '" ++ cTitle cred ++ "' copied to clipboard."
+    Register acct -> doRegister acct
+    _ -> do
+      let acct = account cmd
+      key <- ensureAuth acct
+      eVault <- loadVault (toVaultFile acct) key
+      vault  <- case eVault of
+        Left err -> error $ "Error al cargar el Vault: " ++ err
+        Right v  -> return v
+      case cmd of
+        List{} -> do
+          let header = ["Titulo","Usuario","Contraseña"]
+              rows   = [[cTitle c, maskUser (cUser c), encryptedPass] | c <- vault]
+              widths = encomputeWidths (header:rows)
+          putStrLn $ enformatRow widths header
+          putStrLn $ enformatRow widths (map (map (const '-')) header)
+          mapM_ (putStrLn . enformatRow widths) rows
+        Add{account,title,username,password} -> do
+          let cred = Credential title username (BC.pack password)
+          saveVault (toVaultFile account) key (vault ++ [cred])
+          putStrLn $ "Agregado: " ++ title
+        Remove{account,titleR} -> do
+          let vault' = filter ((/= titleR) . cTitle) vault
+          saveVault (toVaultFile account) key vault'
+          putStrLn $ "Eliminado: " ++ titleR
+        CopyUser{titleC} ->
+          case find ((==titleC) . cTitle) vault of
+            Just cred -> do
+              copyToClipboard (BC.pack $ cUser cred)
+              putStrLn $ "Nombre de usuario para '" ++ titleC ++ "' copiado."
+            Nothing -> putStrLn $ "La credencial '" ++ titleC ++ "' no fue encontrada."
+        CopyPass{titleC} ->
+          case find ((==titleC) . cTitle) vault of
+            Just cred -> do
+              copyToClipboard (cPass cred)
+              putStrLn $ "Contraseña para '" ++ titleC ++ "' copiada."
+            Nothing -> putStrLn $ "La credencial '" ++ titleC ++ "' no fue encontrada."
+        Edit{account,titleE,newUser,newPass} ->
+          case find ((==titleE) . cTitle) vault of
+            Just cred -> do
+              let updated = cred { cUser = fromMaybe (cUser cred) newUser
+                                 , cPass = maybe (cPass cred) BC.pack newPass }
+                  vault'  = map (\c -> if cTitle c == titleE then updated else c) vault
+              saveVault (toVaultFile account) key vault'
+              putStrLn $ "Modificado: " ++ titleE
+            Nothing -> putStrLn $ "La credencial '" ++ titleE ++ "' no fue encontrada."
+        _ -> return ()

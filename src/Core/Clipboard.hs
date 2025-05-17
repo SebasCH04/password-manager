@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Módulo para copiar texto al portapapeles, soporta macOS y Linux
+--modulo para copiar texto al portapapeles, lo hicimos para que soportara macOS y Linux
 module Core.Clipboard
-  ( copyToClipboard  -- ^ Copia un ByteString al portapapeles
+  ( copyToClipboard --copia un ByteString al portapapeles
   ) where
 
 import System.Info      (os)
@@ -12,7 +12,7 @@ import System.Directory (findExecutable)
 import Data.ByteString  (ByteString)
 import qualified Data.ByteString.Char8 as BS
 
--- | Envia datos a la utilidad de portapapeles
+--envia datos a la utilidad de portapapeles
 doCopy :: String -> [String] -> ByteString -> IO ()
 doCopy cmd args bs = do
   let text = BS.unpack bs
@@ -23,7 +23,7 @@ doCopy cmd args bs = do
   _ <- waitForProcess ph
   return ()
 
--- | Copia al portapapeles usando la utilidad disponible en el sistema
+--copia al portapapeles usando la utilidad disponible en el sistema
 copyToClipboard :: ByteString -> IO ()
 copyToClipboard bs = case os of
   "darwin" -> do
@@ -39,4 +39,4 @@ copyToClipboard bs = case os of
         mx <- findExecutable "xclip"
         case mx of
           Just _  -> doCopy "xclip" ["-selection","clipboard"] bs
-          Nothing -> error "No se encontró wl-copy ni xclip"
+          Nothing -> error "No se encontro wl-copy ni xclip"

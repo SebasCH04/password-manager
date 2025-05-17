@@ -6,23 +6,23 @@ import GHC.Generics (Generic)
 import Data.ByteString (ByteString)
 import Data.Serialize (Serialize)
 
--- | Representa un usuario con su nombre, salt y hash del PIN
+--representa un usuario con su nombre, salt y hash del PIN
 data User = User
-  { uName :: String        -- ^ Identificador del usuario
-  , uSalt :: ByteString    -- ^ Sal aleatorio (por ejemplo 16 bytes)
-  , uHash :: ByteString    -- ^ Hash PBKDF2-SHA256 del PIN
+  { uName :: String --identificador del usuario
+  , uSalt :: ByteString --sal aleatorio (por ejemplo 16 bytes)
+  , uHash :: ByteString --hash PBKDF2-SHA256 del PIN
   } deriving (Show, Generic)
 
--- | Credencial almacenada en el vault
+--credencial almacenada en el vault
 data Credential = Credential
-  { cTitle :: String       -- ^ Título o etiqueta de la credencial
-  , cUser  :: String       -- ^ Nombre de usuario (o correo)
-  , cPass  :: ByteString   -- ^ Contraseña en memoria (se cifrará al persistir)
+  { cTitle :: String --titulo o etiqueta de la credencial
+  , cUser  :: String --nombre de usuario
+  , cPass  :: ByteString --contraseña en memoria (se va a cifrar al persistir)
   } deriving (Show, Generic)
 
--- | El vault es la colección de credenciales de un usuario
+--el vault es la coleccion de credenciales de un usuario
 type Vault = [Credential]
 
--- Instancias de serialización para leer/escribir con cereal
+--instancias de serializacion para leer/escribir usando cereal
 instance Serialize User
 instance Serialize Credential
