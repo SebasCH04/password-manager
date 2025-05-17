@@ -90,6 +90,16 @@
   (major1) == 0 && (major2) <  18 || \
   (major1) == 0 && (major2) == 18 && (minor) <= 1)
 #endif /* MIN_VERSION_optparse_applicative */
+/* package process-1.6.25.0 */
+#ifndef VERSION_process
+#define VERSION_process "1.6.25.0"
+#endif /* VERSION_process */
+#ifndef MIN_VERSION_process
+#define MIN_VERSION_process(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  6 || \
+  (major1) == 1 && (major2) == 6 && (minor) <= 25)
+#endif /* MIN_VERSION_process */
 
 /* tool gcc-13 */
 #ifndef TOOL_VERSION_gcc
@@ -173,7 +183,7 @@
 #endif /* MIN_TOOL_VERSION_strip */
 
 #ifndef CURRENT_COMPONENT_ID
-#define CURRENT_COMPONENT_ID "password-manager-0.1.0.0-3pKPojEmqYqAv5XkUHElq5-password-manager"
+#define CURRENT_COMPONENT_ID "password-manager-0.1.0.0-HLrASCM4snrLqiLLIlmOcZ-password-manager"
 #endif /* CURRENT_COMPONENT_ID */
 #ifndef CURRENT_PACKAGE_VERSION
 #define CURRENT_PACKAGE_VERSION "0.1.0.0"

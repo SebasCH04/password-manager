@@ -47,7 +47,7 @@ getBinDir, getLibDir, getDynLibDir, getDataDir, getLibexecDir, getSysconfDir :: 
 
 bindir, libdir, dynlibdir, datadir, libexecdir, sysconfdir :: FilePath
 bindir     = "/home/sebas/password-manager/.stack-work/install/x86_64-linux-tinfo6/4d726fd79ccd723feaffd149ca1742d27dcb034acd3cc68a15f24ef78453b20a/9.8.4/bin"
-libdir     = "/home/sebas/password-manager/.stack-work/install/x86_64-linux-tinfo6/4d726fd79ccd723feaffd149ca1742d27dcb034acd3cc68a15f24ef78453b20a/9.8.4/lib/x86_64-linux-ghc-9.8.4/password-manager-0.1.0.0-3pKPojEmqYqAv5XkUHElq5-password-manager"
+libdir     = "/home/sebas/password-manager/.stack-work/install/x86_64-linux-tinfo6/4d726fd79ccd723feaffd149ca1742d27dcb034acd3cc68a15f24ef78453b20a/9.8.4/lib/x86_64-linux-ghc-9.8.4/password-manager-0.1.0.0-HLrASCM4snrLqiLLIlmOcZ-password-manager"
 dynlibdir  = "/home/sebas/password-manager/.stack-work/install/x86_64-linux-tinfo6/4d726fd79ccd723feaffd149ca1742d27dcb034acd3cc68a15f24ef78453b20a/9.8.4/lib/x86_64-linux-ghc-9.8.4"
 datadir    = "/home/sebas/password-manager/.stack-work/install/x86_64-linux-tinfo6/4d726fd79ccd723feaffd149ca1742d27dcb034acd3cc68a15f24ef78453b20a/9.8.4/share/x86_64-linux-ghc-9.8.4/password-manager-0.1.0.0"
 libexecdir = "/home/sebas/password-manager/.stack-work/install/x86_64-linux-tinfo6/4d726fd79ccd723feaffd149ca1742d27dcb034acd3cc68a15f24ef78453b20a/9.8.4/libexec/x86_64-linux-ghc-9.8.4/password-manager-0.1.0.0"

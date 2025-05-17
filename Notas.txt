@@ -1,0 +1,43 @@
+1) Listar credenciales
+
+stack exec password-manager -- list
+
+2) Añadir una nueva credencial
+
+stack exec password-manager -- add \
+  --title GitHub \
+  --user SebasCH04 \
+  --pass 123123
+
+3) Eliminar una credencial
+
+stack exec password-manager -- remove \
+  --title GitHub
+
+4) Copiar usuario al portapapeles
+
+stack exec password-manager -- copy-user \
+  --title GitHub
+
+5) Copiar contraseña al portapapeles
+
+stack exec password-manager -- copy-pass \
+  --title GitHub
+
+6) Editar una credencial existente
+
+# - Cambiar solo usuario:
+stack exec password-manager -- edit \
+  --title GitHub \
+  --user nuevoUsuario
+
+# - Cambiar solo contraseña:
+stack exec password-manager -- edit \
+  --title GitHub \
+  --pass nuevaClave
+
+# - Cambiar ambos a la vez:
+stack exec password-manager -- edit \
+  --title GitHub \
+  --user nuevoUsuario \
+  --pass nuevaClave
